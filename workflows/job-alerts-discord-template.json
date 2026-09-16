@@ -1,0 +1,975 @@
+{
+  "name": "Job Search - Job Board to Discord (Template v2)",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Job Search Trigger": {
+      "main": [
+        [
+          {
+            "node": "Compute Run Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Run Window": {
+      "main": [
+        [
+          {
+            "node": "Fetch Jobs — Location 1 (Apify)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Jobs — Location 2 (Apify)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Jobs — Location 1 (Apify)": {
+      "main": [
+        [
+          {
+            "node": "Combine Job Searches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Job Searches": {
+      "main": [
+        [
+          {
+            "node": "Normalize Job Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Jobs — Location 2 (Apify)": {
+      "main": [
+        [
+          {
+            "node": "Combine Job Searches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Normalize Job Fields": {
+      "main": [
+        [
+          {
+            "node": "Passes Filters?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Passes Filters?": {
+      "main": [
+        [
+          {
+            "node": "Loop Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "All Jobs Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Seen?": {
+      "main": [
+        [
+          {
+            "node": "Loop Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Scoring Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Jobs": {
+      "main": [
+        [
+          {
+            "node": "All Jobs Processed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Seen Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Scoring Request": {
+      "main": [
+        [
+          {
+            "node": "Score With AI (Perplexity)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score With AI (Perplexity)": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Score": {
+      "main": [
+        [
+          {
+            "node": "Is Good Fit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Good Fit?": {
+      "main": [
+        [
+          {
+            "node": "Build Discord Embed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Seen Job (No Fit)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Discord Embed": {
+      "main": [
+        [
+          {
+            "node": "Post to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Seen Job": {
+      "main": [
+        [
+          {
+            "node": "Already Seen?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Discord": {
+      "main": [
+        [
+          {
+            "node": "Save Seen Job (Fit)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Seen Job (Fit)": {
+      "main": [
+        [
+          {
+            "node": "Loop Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Seen Job (No Fit)": {
+      "main": [
+        [
+          {
+            "node": "Loop Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodes": [
+    {
+      "id": "ff4e4584-f76e-43e3-985f-c481a7a69614",
+      "name": "Job Search Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        576
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9,15,21 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ff28f726-6ab1-4b71-a78e-ac53fa0acaba",
+      "name": "Compute Run Window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        656
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const runHour = $now.hour;\nconst isFirstRun = (runHour === 9);\nconst datePostedFilter = isFirstRun ? 'pastWeek' : 'past24Hours';\nconst maxJobsPrimary = isFirstRun ? 30 : 15;\nconst maxJobsSecondary = isFirstRun ? 20 : 10;\nconst todayDateStr = $now.toFormat('yyyy-LL-dd');\nreturn [{ json: { isFirstRun, datePostedFilter, maxJobsPrimary, maxJobsSecondary, todayDateStr, runHour, runTimestamp: $now.toISO() } }];"
+      }
+    },
+    {
+      "id": "32e6839d-ec8d-4767-9484-ebb2c45d5736",
+      "name": "Fetch Jobs — Location 1 (Apify)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        576
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/codingfrontend~linkedin-jobs-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { keywords: 'Example Role 1 OR Example Role 2 OR Example Role 3', location: 'Remote', maxJobs: $json.maxJobsPrimary, datePosted: $json.datePostedFilter } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "5cb87f61-8ae8-4ff1-8769-4f7081e85cf1",
+      "name": "Combine Job Searches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        336,
+        656
+      ],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "b57a365a-78c6-460e-95bc-3a9fdc6611ef",
+      "name": "Fetch Jobs — Location 2 (Apify)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        736
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/codingfrontend~linkedin-jobs-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { keywords: 'Example Role 1 OR Example Role 2 OR Example Role 3', location: 'Toronto, Ontario, Canada', maxJobs: $json.maxJobsSecondary, datePosted: $json.datePostedFilter } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "bc2f4821-7b86-4969-89f2-9b92a4580bdc",
+      "name": "Normalize Job Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        576
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const j = $json;\nconst title = j.title || j.jobTitle || j.position || 'Unknown Title';\nconst company = j.companyName || j.company || j.company_name || 'Unknown Company';\nconst companyLogo = j.companyLogo || j.company_logo || j.logo || '';\nconst location = j.location || j.jobLocation || '';\nconst jobUrl = j.jobUrl || j.url || j.link || j.jobLink || '';\nconst description = j.descriptionText || j.description || j.jobDescription || j.descriptionHtml || '';\nconst salaryText = j.salary || j.salaryText || j.compensation || '';\nconst postedDate = j.postedDate || j.datePosted || j.postedAt || '';\nconst jobId = j.jobId || j.id || jobUrl;\n\nconst runCtx = $('Compute Run Window').first().json;\n\nfunction parseAgeMinutes(text) {\n  if (!text) return null;\n  const t = String(text).toLowerCase().trim();\n  if (t.includes('just now') || t.includes('moment')) return 0;\n  const match = t.match(/(\\d+)\\s*(minute|hour|day|week|month)/);\n  if (!match) return null;\n  const n = parseInt(match[1], 10);\n  const unitMinutes = { minute: 1, hour: 60, day: 1440, week: 10080, month: 43200 };\n  return n * (unitMinutes[match[2]] || 0);\n}\n\nconst ageMinutes = parseAgeMinutes(postedDate);\nconst ageHours = ageMinutes === null ? null : ageMinutes / 60;\nconst postedMoment = ageMinutes === null ? null : $now.minus({ minutes: ageMinutes });\nconst postedDateStr = postedMoment === null ? null : postedMoment.toFormat('yyyy-LL-dd');\nconst isSameDay = postedDateStr !== null && postedDateStr === runCtx.todayDateStr;\nconst isVeryFresh = ageHours !== null && ageHours <= 1;\n\nconst passesFreshnessFilter = runCtx.isFirstRun\n  ? (ageHours !== null && ageHours <= 168)\n  : (ageHours !== null && ageHours <= 1 && isSameDay);\n\nreturn { json: { jobId, jobUrl, title, company, companyLogo, location, description, salaryText, postedDate, ageHours, isSameDay, isVeryFresh, passesFreshnessFilter } };"
+      }
+    },
+    {
+      "id": "6dff9c05-d03a-4a24-b653-4985f6c76502",
+      "name": "Passes Filters?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        576
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.jobUrl }}",
+              "operator": {
+                "operation": "notEmpty",
+                "type": "string"
+              },
+              "rightValue": ""
+            },
+            {
+              "leftValue": "={{ $json.passesFreshnessFilter }}",
+              "operator": {
+                "operation": "true",
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0ffbb9e9-dda5-43fd-ab55-0ef1d349281f",
+      "name": "All Jobs Processed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "43639973-c4ba-4764-9154-89502bae60f4",
+      "name": "Already Seen?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1344,
+        272
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.jobUrl }}",
+              "operator": {
+                "operation": "notEmpty",
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cdf3d6cd-c903-4dc4-8a5a-2757351debd5",
+      "name": "Loop Jobs",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        896,
+        416
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "58a01c80-829a-4500-84c0-ad68e01ff4e4",
+      "name": "Build Scoring Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        272
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const job = $('Normalize Job Fields').item.json;\n\n// TEMPLATE: replace this with your own resume text\nconst resumeText = 'PASTE YOUR RESUME TEXT HERE — name, summary, skills, work history, education. This whole block is sent to the AI on every job it scores.';\n\n// TEMPLATE: replace with your own target role titles\nconst roleFamilies = 'Example Role 1, Example Role 2, Example Role 3';\n\n// TEMPLATE: adjust to your target pay range\nconst targetPayRange = '$60-80 USD/hour (roughly $125K-$166K/year)';\n\nconst prompt = 'You are screening a job posting for a candidate against a strict scoring rubric. Here is the candidate resume:\\n\\n' + resumeText + '\\n\\nTarget role families (the role should match or be closely adjacent to one of these): ' + roleFamilies + '\\n\\nHere is a job posting to evaluate:\\nTitle: ' + job.title + '\\nCompany: ' + job.company + '\\nLocation: ' + job.location + '\\nSalary/Pay listed: ' + (job.salaryText || 'Not listed') + '\\nDescription: ' + job.description + '\\n\\nSTEP 1 - HARD EXCLUSIONS. Set isGoodFit to false regardless of score if the role is clearly a mismatch on location or work arrangement, seniority, or work authorization, or the posting looks expired or duplicate.\\n\\nSTEP 2 - SCORE (0-100) using this rubric: Location and Work Arrangement (0-25), Compensation vs target ' + targetPayRange + ' (0-20), Employment Type (0-10), Resume and Role Fit (0-35, weight this heaviest), Seniority and Scope (0-10). Bonus: +5 if the industry is a strong match, +0 otherwise.\\n\\nisGoodFit should be true only if not excluded AND the total score is 65 or higher.\\n\\nAlso write a brief neutral 1-2 sentence summary of what the role involves day to day, and list 3-6 key skills, tools, or keywords mentioned in the posting.\\n\\nRespond with ONLY a single valid JSON object (standard double-quoted JSON, no markdown fences, no extra text) containing exactly these fields: isGoodFit (boolean), matchScore (number 0-105), isRemote (boolean), payAmount (string or null), payInRange (boolean or null), otherNotes (array of strings), reasoning (string), descriptionSummary (string), keySkills (array of strings).';\n\nreturn { json: { requestBody: { model: 'sonar', max_tokens: 900, messages: [{ role: 'user', content: prompt }] } } };"
+      }
+    },
+    {
+      "id": "b85ccf9d-cf1a-47b3-a004-730b02f09f17",
+      "name": "Score With AI (Perplexity)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1792,
+        272
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "contentType": "json",
+        "jsonBody": "={{ $json.requestBody }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "9cf5ac25-955f-45e9-a680-d7ccd676e6ed",
+      "name": "Parse AI Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        272
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const respObj = $json || {};\nlet text = '';\nif (respObj.choices && Array.isArray(respObj.choices) && respObj.choices[0] && respObj.choices[0].message) {\n  text = respObj.choices[0].message.content || '';\n}\ntext = text.trim();\ntext = text.replace(/^```json\\s*/i, '').replace(/^```\\s*/, '').replace(/```\\s*$/, '');\nif (!text.startsWith('{')) {\n  const match = text.match(/\\{[\\s\\S]*\\}/);\n  if (match) { text = match[0]; }\n}\nlet parsed = {};\ntry {\n  parsed = JSON.parse(text);\n} catch (e) {\n  parsed = { isGoodFit: false, matchScore: 0, isRemote: null, payAmount: null, payInRange: null, reasoning: 'Could not parse AI response: ' + text.slice(0, 200), descriptionSummary: '', keySkills: [], otherNotes: [] };\n}\nconst job = $('Normalize Job Fields').item.json;\nreturn { json: {\n  jobId: job.jobId,\n  jobUrl: job.jobUrl,\n  title: job.title,\n  company: job.company,\n  companyLogo: job.companyLogo,\n  location: job.location,\n  salaryText: job.salaryText,\n  postedDate: job.postedDate,\n  ageHours: job.ageHours,\n  isVeryFresh: job.isVeryFresh,\n  isGoodFit: parsed.isGoodFit === true,\n  matchScore: typeof parsed.matchScore === 'number' ? parsed.matchScore : 0,\n  isRemote: parsed.isRemote === true,\n  payAmount: parsed.payAmount || null,\n  payInRange: parsed.payInRange === true,\n  reasoning: parsed.reasoning || '',\n  descriptionSummary: parsed.descriptionSummary || '',\n  keySkills: Array.isArray(parsed.keySkills) ? parsed.keySkills : [],\n  otherNotes: Array.isArray(parsed.otherNotes) ? parsed.otherNotes : []\n} };"
+      }
+    },
+    {
+      "id": "e96fbcc5-9484-436a-b4fb-b8ef2a22089d",
+      "name": "Is Good Fit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        272
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.isGoodFit }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "455eaf0c-f8fd-41b7-9774-bc88743167c6",
+      "name": "Build Discord Embed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const j = $json;\nconst isPriority = j.isVeryFresh === true && j.matchScore >= 80;\nconst color = isPriority ? 16753920 : (j.matchScore >= 80 ? 3066993 : (j.matchScore >= 65 ? 15844367 : 15158332));\n\nconst author = { name: j.company || 'Unknown Company' };\nif (j.companyLogo) { author.icon_url = j.companyLogo; }\n\nfunction padLabel(label, width) {\n  return label + ' '.repeat(Math.max(1, width - label.length));\n}\n\nconst labelWidth = 12;\nconst infoLines = [\n  padLabel('Posted', labelWidth) + '| ' + (j.postedDate || 'Unknown'),\n  padLabel('Match Score', labelWidth) + '| ' + j.matchScore + '/100',\n  padLabel('Remote', labelWidth) + '| ' + (j.isRemote ? 'Yes' : 'Not confirmed'),\n  padLabel('Location', labelWidth) + '| ' + (j.location || 'Not specified'),\n  padLabel('Pay', labelWidth) + '| ' + (j.payAmount || 'Not listed')\n].join('\\n');\n\nconst skills = Array.isArray(j.keySkills) ? j.keySkills : [];\nconst skillsValue = skills.length > 0 ? skills.map(function(s) { return '• ' + s; }).join('\\n') : '_None extracted_';\n\nconst notes = Array.isArray(j.otherNotes) ? j.otherNotes : [];\nconst notesValue = notes.length > 0 ? notes.map(function(n) { return '• ' + n; }).join('\\n') : '_None noted_';\n\n// TEMPLATE: replace with your own resume link/title, or delete the Resume Used field below if you don't want one\nconst RESUME_URL = 'https://example.com/your-resume-link';\nconst RESUME_TITLE = 'Your Name — Resume';\n\n// TEMPLATE: map your name to your Discord user ID (Discord: enable Developer Mode, right-click your name, Copy User ID)\nconst MENTION_MAP = {\n  'Your Name': 'YOUR_DISCORD_USER_ID'\n};\nconst mentionName = 'Your Name';\nconst mentionId = MENTION_MAP[mentionName];\nconst mentionSuffix = mentionId ? (' <@' + mentionId + '>') : '';\n\nconst fields = [\n  { name: '📋 Details', value: '```\\n' + infoLines + '\\n```', inline: false },\n  { name: '📝 Other Notes', value: notesValue, inline: false },\n  { name: '🧩 Key Skills', value: skillsValue, inline: false },\n  { name: '🤔 Why It Fits', value: j.reasoning || 'No reasoning provided', inline: false },\n  { name: '🔗 Apply', value: '[View Job Posting](' + j.jobUrl + ')', inline: false },\n  { name: '📄 Resume Used', value: '[' + RESUME_TITLE + '](' + RESUME_URL + ')', inline: false }\n];\n\nconst embed = {\n  author: author,\n  title: (isPriority ? '🔥 ' : '') + j.title,\n  url: j.jobUrl,\n  description: j.descriptionSummary || '_No summary available_',\n  color: color,\n  fields: fields,\n  footer: { text: 'Job Alert Bot' },\n  timestamp: new Date().toISOString()\n};\n\nconst contentPrefix = isPriority ? '🔥 **PRIORITY MATCH** - posted within the last hour!' : '💼 **New Job Match**';\nconst discordPayload = { username: 'Job Alerts', content: contentPrefix + ' - ' + j.matchScore + '% fit' + mentionSuffix, embeds: [embed] };\nreturn { json: { discordPayload: discordPayload, jobId: j.jobId, jobUrl: j.jobUrl, title: j.title, company: j.company, matchScore: j.matchScore, isGoodFit: j.isGoodFit, isPriority: isPriority, descriptionSummary: j.descriptionSummary, keySkills: skills, otherNotes: notes } };"
+      }
+    },
+    {
+      "id": "d249ba7b-4e5a-42d9-9e83-e4e21f9ac96e",
+      "name": "Post to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2688,
+        192
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "YOUR_DISCORD_WEBHOOK_URL",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.discordPayload }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "e7d77d79-7e0a-4bb6-be41-ee6c946900d8",
+      "name": "Sticky Note 47ed3832",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "parameters": {
+        "content": "## 🛠️ START HERE — Template Setup Checklist\nBefore this workflow can run, replace these placeholders:\n\n1. Job Scraper API Key credential (Apify) — the two Fetch Jobs nodes\n2. Google Sheets credential + your own Sheet ID — Check Seen Job, Save Seen Job (Fit), Save Seen Job (No Fit). Create a sheet first with columns: jobUrl, jobId, title, company, matchScore, isGoodFit, postedToDiscord, seenAt, descriptionSummary\n3. Perplexity API Key credential — Score With AI node\n4. Discord webhook URL — Post to Discord node\n5. Your resume text, target role titles, and pay range — Build Scoring Request node\n6. Your Discord user ID (for @mentions) — Build Discord Embed node\n7. Adjust the schedule (cron) and search keywords/locations to your own job search\n\nThis workflow starts INACTIVE on purpose. Do a manual test run once everything above is filled in, confirm a job posts correctly to Discord, then turn it on.",
+        "color": 7,
+        "width": 480,
+        "height": 460
+      }
+    },
+    {
+      "id": "5b67cae1-fd3b-4b39-b77c-3912613ba334",
+      "name": "Sticky Note cd8c9f64",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        864
+      ],
+      "parameters": {
+        "content": "## 1) Schedule & Job Source\nJob Search Trigger — cron 0 9,15,21 * * * (edit to your own run times, and set the node's timezone).\n\nCompute Run Window treats one run (currently 9am) as the daily wide catch-up run — bigger date range, bigger job caps. If you move that run, update the runHour === 9 check here too.\n\nFetch Jobs — Location 1 / Location 2 (Apify): edit keywords to your target job titles, edit location for where to search. Add a 3rd location by duplicating one of these and wiring it into a 3rd Merge input.",
+        "color": 4,
+        "width": 480,
+        "height": 460
+      }
+    },
+    {
+      "id": "96fc8719-4b45-4ede-8f52-d7842bca00d8",
+      "name": "Sticky Note db5bb1b3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        1424
+      ],
+      "parameters": {
+        "content": "## 2) Freshness Filter\nNormalize Job Fields parses each posting's age and sets passesFreshnessFilter (wide window on the catch-up run, 1 hour + same-day otherwise).\n\nPasses Filters? drops anything with no URL or that fails freshness — straight to the end, no Discord post, no sheet write.",
+        "color": 4,
+        "width": 480,
+        "height": 260
+      }
+    },
+    {
+      "id": "9dcc9d5d-4a4f-4f0a-b543-a37e79e2253a",
+      "name": "Sticky Note 5907435c",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        1776
+      ],
+      "parameters": {
+        "content": "## 3) Dedup Check (Google Sheets)\nCheck Seen Job reads your tracking sheet for this job's URL. Already Seen? skips it if a row was found, otherwise it moves on to AI scoring.\n\nThis is the SAME sheet the two Save Seen Job nodes write to. Replace YOUR_GOOGLE_SHEET_ID in all three Google Sheets nodes together if you move the sheet.",
+        "color": 5,
+        "width": 460,
+        "height": 260
+      }
+    },
+    {
+      "id": "4fed6802-df7f-4d98-a42b-2f6984f5a241",
+      "name": "Sticky Note aca9f3f6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        2128
+      ],
+      "parameters": {
+        "content": "## 4) AI Scoring — main tuning spot\nBuild Scoring Request is where almost everything about \"what counts as a good job\" lives — clearly marked TEMPLATE blocks for: resumeText, roleFamilies, targetPayRange, plus the hard-exclusion rules and rubric weights written into the prompt, and the 65-point good-fit cutoff near the end.\n\nScore With AI just sends that prompt to Perplexity (model: sonar). Parse AI Score unpacks the JSON response — no need to touch it unless the response shape changes.",
+        "color": 3,
+        "width": 560,
+        "height": 420
+      }
+    },
+    {
+      "id": "29e26c06-a43b-4183-aee7-e270d7b4a4d9",
+      "name": "Sticky Note 8e373205",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        2640
+      ],
+      "parameters": {
+        "content": "## 5) Discord Post\nBuild Discord Embed builds the message: title, color (by score band), fields, the priority flag (posted within 1h AND score 80+ — edit isPriority to change), and the @mention via MENTION_MAP (name → your Discord user ID). Both are marked TEMPLATE — fill them in.\n\nPost to Discord just POSTs that payload to a webhook URL — it's a required placeholder field, fill it in with your own channel's webhook before running.",
+        "color": 6,
+        "width": 460,
+        "height": 300
+      }
+    },
+    {
+      "id": "a711938f-c3b4-4cbe-939d-9efa266f9110",
+      "name": "Sticky Note a70671be",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        3040
+      ],
+      "parameters": {
+        "content": "## 6) Logging\nSave Seen Job (Fit) and Save Seen Job (No Fit) both write to the same tracking sheet as the dedup check (Section 3), keyed on jobUrl. Every job gets logged — fit or not — which is what lets Already Seen? skip it next time.",
+        "color": 5,
+        "width": 460,
+        "height": 200
+      }
+    },
+    {
+      "id": "88e2775e-591f-4553-bcb2-5cbc36562c55",
+      "name": "Check Seen Job",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        192
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "combineFilters": "AND",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "jobUrl",
+              "lookupValue": "={{ $json.jobUrl }}"
+            }
+          ]
+        },
+        "operation": "read",
+        "options": {},
+        "resource": "sheet",
+        "returnAllMatches": "returnFirstMatch",
+        "returnFirstMatch": true,
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Sheet1",
+          "mode": "list",
+          "value": "gid=0"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "466429cd-25a9-4b62-ba12-ae7296fe03e3",
+      "name": "Save Seen Job (Fit)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2912,
+        336
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "jobUrl"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "jobUrl",
+              "id": "jobUrl",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "jobId",
+              "id": "jobId",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "title",
+              "id": "title",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "company",
+              "id": "company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "matchScore",
+              "id": "matchScore",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "isGoodFit",
+              "id": "isGoodFit",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "postedToDiscord",
+              "id": "postedToDiscord",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "seenAt",
+              "id": "seenAt",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "descriptionSummary",
+              "id": "descriptionSummary",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "company": "={{ $('Build Discord Embed').item.json.company }}",
+            "descriptionSummary": "={{ $('Build Discord Embed').item.json.descriptionSummary }}",
+            "isGoodFit": "={{ $('Build Discord Embed').item.json.isGoodFit }}",
+            "jobId": "={{ $('Build Discord Embed').item.json.jobId }}",
+            "jobUrl": "={{ $('Build Discord Embed').item.json.jobUrl }}",
+            "matchScore": "={{ $('Build Discord Embed').item.json.matchScore }}",
+            "postedToDiscord": true,
+            "seenAt": "={{ $now.toISO() }}",
+            "title": "={{ $('Build Discord Embed').item.json.title }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "operation": "appendOrUpdate",
+        "options": {},
+        "resource": "sheet",
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Sheet1",
+          "mode": "list",
+          "value": "gid=0"
+        }
+      }
+    },
+    {
+      "id": "4254d40a-cfb2-437e-ac50-8f59b3cb241b",
+      "name": "Save Seen Job (No Fit)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2464,
+        384
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "jobUrl"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "jobUrl",
+              "id": "jobUrl",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "jobId",
+              "id": "jobId",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "title",
+              "id": "title",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "company",
+              "id": "company",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "matchScore",
+              "id": "matchScore",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "isGoodFit",
+              "id": "isGoodFit",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "postedToDiscord",
+              "id": "postedToDiscord",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "seenAt",
+              "id": "seenAt",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "descriptionSummary",
+              "id": "descriptionSummary",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "company": "={{ $json.company }}",
+            "descriptionSummary": "={{ $json.descriptionSummary }}",
+            "isGoodFit": "={{ $json.isGoodFit }}",
+            "jobId": "={{ $json.jobId }}",
+            "jobUrl": "={{ $json.jobUrl }}",
+            "matchScore": "={{ $json.matchScore }}",
+            "postedToDiscord": false,
+            "seenAt": "={{ $now.toISO() }}",
+            "title": "={{ $json.title }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "operation": "appendOrUpdate",
+        "options": {},
+        "resource": "sheet",
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Sheet1",
+          "mode": "list",
+          "value": "gid=0"
+        }
+      }
+    }
+  ]
+}
