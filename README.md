@@ -11,7 +11,11 @@ An n8n workflow that scrapes job postings, scores each one against a resume usin
 5. Posts good matches (score ≥ 65) to Discord as a rich embed, with a 🔥 priority flag for very fresh, high-scoring roles
 6. Logs every job it evaluates to a Google Sheet, which powers the dedup check
 
-Full write-up: [`docs/summary.md`](docs/summary.md)
+   Full write-up: [`docs/summary.md`](docs/summary.md)
+
+   **Live n8n workflow (for collaborators with access to this n8n instance):** [Job Search - Job Board to Discord (Template v2)](https://fayefinesse.app.n8n.cloud/workflow/AWexDxDWamBxkFQ1)
+
+   **Everyone else:** import `workflows/job-alerts-discord-template.json` (below) into your own n8n — this works regardless of what instance or account you're on.
 
 ## Contents
 
